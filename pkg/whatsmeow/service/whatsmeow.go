@@ -26,6 +26,7 @@ import (
 	"github.com/skip2/go-qrcode"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/appstate"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/proto/waCompanionReg"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store"
@@ -127,6 +128,33 @@ type ClientData struct {
 	Subscriptions []string
 	Phone         string
 	IsProxy       bool
+}
+
+func (w whatsmeowService) buildIncomingMessageFilter(instance *instance_model.Instance) whatsmeow.IncomingMessageFilter {
+	ignoreGroups := w.config.EventIgnoreGroup || (instance != nil && instance.IgnoreGroups)
+	ignoreStatus := w.config.EventIgnoreStatus
+	ignoreNewsletter := w.config.EventIgnoreNewsletter
+
+	if !ignoreGroups && !ignoreStatus && !ignoreNewsletter {
+		return nil
+	}
+
+	return func(info *types.MessageInfo, _ *waBinary.Node) whatsmeow.IncomingMessageFilterDecision {
+		if info == nil {
+			return whatsmeow.IncomingMessageFilterDecision{Process: true}
+		}
+
+		switch {
+		case ignoreGroups && info.Chat.Server == types.GroupServer:
+			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_group"}
+		case ignoreStatus && info.Chat == types.StatusBroadcastJID:
+			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_status"}
+		case ignoreNewsletter && info.Chat.Server == types.NewsletterServer:
+			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_newsletter"}
+		default:
+			return whatsmeow.IncomingMessageFilterDecision{Process: true}
+		}
+	}
 }
 
 type Values struct {
@@ -389,6 +417,7 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 	}
 	clientLog := waLog.Stdout("Client", minLevel, true)
 	client := whatsmeow.NewClient(deviceStore, clientLog)
+	client.IncomingMessageFilter = w.buildIncomingMessageFilter(cd.Instance)
 
 	w.clientPointer[cd.Instance.Id] = client
 

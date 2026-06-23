@@ -57,10 +57,11 @@ type Config struct {
 	NatsUrl              string
 	NatsGlobalEnabled    bool
 	NatsGlobalEvents     []string
-	EventIgnoreGroup     bool
-	EventIgnoreStatus    bool
-	QrcodeMaxCount       int
-	CheckUserExists      bool
+	EventIgnoreGroup      bool
+	EventIgnoreStatus     bool
+	EventIgnoreNewsletter bool
+	QrcodeMaxCount        int
+	CheckUserExists       bool
 
 	// Logger configurations
 	LogMaxSize    int
@@ -274,6 +275,7 @@ func Load() *Config {
 
 	eventIgnoreGroup := os.Getenv(config_env.EVENT_IGNORE_GROUP)
 	eventIgnoreStatus := os.Getenv(config_env.EVENT_IGNORE_STATUS)
+	eventIgnoreNewsletter := os.Getenv(config_env.EVENT_IGNORE_NEWSLETTER)
 	qrcodeMaxCount := os.Getenv(config_env.QRCODE_MAX_COUNT)
 	checkUserExists := os.Getenv(config_env.CHECK_USER_EXISTS)
 
@@ -379,13 +381,14 @@ func Load() *Config {
 		AmqpGlobalEvents:     amqpGlobalEvents,
 		AmqpSpecificEvents:   amqpSpecificEvents,
 		NatsUrl:              natsUrl,
-		NatsGlobalEnabled:    natsGlobalEnabled == "true",
-		NatsGlobalEvents:     natsGlobalEvents,
-		LogMaxSize:           logMaxSize,
-		LogMaxBackups:        logMaxBackups,
-		LogMaxAge:            logMaxAge,
-		LogDirectory:         logDirectory,
-		LogCompress:          logCompress,
+		NatsGlobalEnabled:     natsGlobalEnabled == "true",
+		NatsGlobalEvents:      natsGlobalEvents,
+		LogMaxSize:            logMaxSize,
+		LogMaxBackups:         logMaxBackups,
+		LogMaxAge:             logMaxAge,
+		LogDirectory:          logDirectory,
+		LogCompress:           logCompress,
+		EventIgnoreNewsletter: eventIgnoreNewsletter == "true",
 	}
 
 	minioEnabled := os.Getenv(config_env.MINIO_ENABLED) == "true"
