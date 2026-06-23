@@ -71,6 +71,7 @@ POSTGRES_USERS_DB=postgresql://user:pass@host:5432/evogo_users?sslmode=disable
 |----------|--------|-----------|
 | `EVENT_IGNORE_GROUP` | `false` | Ignorar eventos de grupos |
 | `EVENT_IGNORE_STATUS` | `true` | Ignorar eventos de status/stories |
+| `EVENT_IGNORE_NEWSLETTER` | `false` | Ignorar eventos de canais/newsletters |
 | `WEBHOOK_URL` | - | URL para callbacks HTTP |
 
 ---

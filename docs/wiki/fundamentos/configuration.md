@@ -268,6 +268,19 @@ Ignora eventos de status/stories.
 EVENT_IGNORE_STATUS=true
 ```
 
+### EVENT_IGNORE_NEWSLETTER
+
+Ignora eventos de canais/newsletters.
+
+- **Tipo**: Boolean
+- **Padrão**: `false`
+
+```env
+EVENT_IGNORE_NEWSLETTER=false
+```
+
+Em builds Chave Certa com o fork `whatsmeow`, quando essa variável está `true`, mensagens de newsletter são descartadas antes da descriptografia completa.
+
 ---
 
 ## Webhooks
