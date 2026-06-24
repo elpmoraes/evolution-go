@@ -17,51 +17,52 @@ import (
 )
 
 type Config struct {
-	PostgresAuthDB       string
-	postgresUsersDB      string
-	PostgresHost         string
-	PostgresPort         string
-	PostgresUser         string
-	PostgresPassword     string
-	PostgresDB           string
-	DatabaseSaveMessages bool
-	GlobalApiKey         string
-	WaDebug              string
-	LogType              string
-	WebhookFiles         bool
-	ConnectOnStartup     bool
-	OsName               string
-	AmqpUrl              string
-	AmqpGlobalEnabled    bool
-	WebhookUrl           string
-	ClientName           string
-	ApiAudioConverter    string
-	ApiAudioConverterKey string
-	MinioEndpoint        string
-	MinioAccessKey       string
-	MinioSecretKey       string
-	MinioBucket          string
-	MinioUseSSL          bool
-	MinioEnabled         bool
-	MinioRegion          string
-	WhatsappVersionMajor int
-	WhatsappVersionMinor int
-	WhatsappVersionPatch int
-	ProxyProtocol        string
-	ProxyHost            string
-	ProxyPort            string
-	ProxyUsername        string
-	ProxyPassword        string
-	AmqpGlobalEvents     []string
-	AmqpSpecificEvents   []string
-	NatsUrl              string
-	NatsGlobalEnabled    bool
-	NatsGlobalEvents     []string
+	PostgresAuthDB        string
+	postgresUsersDB       string
+	PostgresHost          string
+	PostgresPort          string
+	PostgresUser          string
+	PostgresPassword      string
+	PostgresDB            string
+	DatabaseSaveMessages  bool
+	GlobalApiKey          string
+	WaDebug               string
+	LogType               string
+	WebhookFiles          bool
+	ConnectOnStartup      bool
+	OsName                string
+	AmqpUrl               string
+	AmqpGlobalEnabled     bool
+	WebhookUrl            string
+	ClientName            string
+	ApiAudioConverter     string
+	ApiAudioConverterKey  string
+	MinioEndpoint         string
+	MinioAccessKey        string
+	MinioSecretKey        string
+	MinioBucket           string
+	MinioUseSSL           bool
+	MinioEnabled          bool
+	MinioRegion           string
+	WhatsappVersionMajor  int
+	WhatsappVersionMinor  int
+	WhatsappVersionPatch  int
+	ProxyProtocol         string
+	ProxyHost             string
+	ProxyPort             string
+	ProxyUsername         string
+	ProxyPassword         string
+	AmqpGlobalEvents      []string
+	AmqpSpecificEvents    []string
+	NatsUrl               string
+	NatsGlobalEnabled     bool
+	NatsGlobalEvents      []string
 	EventIgnoreGroup      bool
 	EventIgnoreStatus     bool
 	EventIgnoreNewsletter bool
 	QrcodeMaxCount        int
 	CheckUserExists       bool
+	SendPriorityMode      bool
 
 	// Logger configurations
 	LogMaxSize    int
@@ -69,7 +70,6 @@ type Config struct {
 	LogMaxAge     int
 	LogDirectory  string
 	LogCompress   bool
-
 }
 
 // EnsureDBExists connects to postgres (without the target database) and creates it if it doesn't exist.
@@ -278,6 +278,7 @@ func Load() *Config {
 	eventIgnoreNewsletter := os.Getenv(config_env.EVENT_IGNORE_NEWSLETTER)
 	qrcodeMaxCount := os.Getenv(config_env.QRCODE_MAX_COUNT)
 	checkUserExists := os.Getenv(config_env.CHECK_USER_EXISTS)
+	sendPriorityMode := os.Getenv(config_env.SEND_PRIORITY_MODE)
 
 	if checkUserExists == "" {
 		checkUserExists = "true"
@@ -346,41 +347,42 @@ func Load() *Config {
 	}
 
 	config := &Config{
-		PostgresAuthDB:       postgresAuthDB,
-		postgresUsersDB:      postgresUsersDB,
-		DatabaseSaveMessages: databaseSaveMessages == "true",
-		GlobalApiKey:         globalApiKey,
-		WaDebug:              waDebug,
-		LogType:              logType,
-		WebhookFiles:         webhookFiles == "true",
-		ConnectOnStartup:     connectOnStartup == "true",
-		OsName:               osName,
-		AmqpUrl:              amqpUrl,
-		AmqpGlobalEnabled:    amqpGlobalEnabled == "true",
-		WebhookUrl:           webhookUrl,
-		ClientName:           clientName,
-		ApiAudioConverter:    apiAudioConverter,
-		ApiAudioConverterKey: apiAudioConverterKey,
-		PostgresHost:         postgresHost,
-		PostgresPort:         postgresPort,
-		PostgresUser:         postgresUser,
-		PostgresPassword:     postgresPassword,
-		PostgresDB:           postgresDB,
-		WhatsappVersionMajor: major,
-		WhatsappVersionMinor: minor,
-		WhatsappVersionPatch: patch,
-		ProxyProtocol:        proxyProtocol,
-		ProxyHost:            proxyHost,
-		ProxyPort:            proxyPort,
-		ProxyUsername:        proxyUsername,
-		ProxyPassword:        proxyPassword,
-		EventIgnoreGroup:     eventIgnoreGroup == "true",
-		EventIgnoreStatus:    eventIgnoreStatus == "true",
-		QrcodeMaxCount:       qrMaxCount,
-		CheckUserExists:      checkUserExists != "false", // Default true, set to false to disable
-		AmqpGlobalEvents:     amqpGlobalEvents,
-		AmqpSpecificEvents:   amqpSpecificEvents,
-		NatsUrl:              natsUrl,
+		PostgresAuthDB:        postgresAuthDB,
+		postgresUsersDB:       postgresUsersDB,
+		DatabaseSaveMessages:  databaseSaveMessages == "true",
+		GlobalApiKey:          globalApiKey,
+		WaDebug:               waDebug,
+		LogType:               logType,
+		WebhookFiles:          webhookFiles == "true",
+		ConnectOnStartup:      connectOnStartup == "true",
+		OsName:                osName,
+		AmqpUrl:               amqpUrl,
+		AmqpGlobalEnabled:     amqpGlobalEnabled == "true",
+		WebhookUrl:            webhookUrl,
+		ClientName:            clientName,
+		ApiAudioConverter:     apiAudioConverter,
+		ApiAudioConverterKey:  apiAudioConverterKey,
+		PostgresHost:          postgresHost,
+		PostgresPort:          postgresPort,
+		PostgresUser:          postgresUser,
+		PostgresPassword:      postgresPassword,
+		PostgresDB:            postgresDB,
+		WhatsappVersionMajor:  major,
+		WhatsappVersionMinor:  minor,
+		WhatsappVersionPatch:  patch,
+		ProxyProtocol:         proxyProtocol,
+		ProxyHost:             proxyHost,
+		ProxyPort:             proxyPort,
+		ProxyUsername:         proxyUsername,
+		ProxyPassword:         proxyPassword,
+		EventIgnoreGroup:      eventIgnoreGroup == "true",
+		EventIgnoreStatus:     eventIgnoreStatus == "true",
+		QrcodeMaxCount:        qrMaxCount,
+		CheckUserExists:       checkUserExists != "false", // Default true, set to false to disable
+		SendPriorityMode:      sendPriorityMode == "true",
+		AmqpGlobalEvents:      amqpGlobalEvents,
+		AmqpSpecificEvents:    amqpSpecificEvents,
+		NatsUrl:               natsUrl,
 		NatsGlobalEnabled:     natsGlobalEnabled == "true",
 		NatsGlobalEvents:      natsGlobalEvents,
 		LogMaxSize:            logMaxSize,

@@ -134,8 +134,9 @@ func (w whatsmeowService) buildIncomingMessageFilter(instance *instance_model.In
 	ignoreGroups := w.config.EventIgnoreGroup || (instance != nil && instance.IgnoreGroups)
 	ignoreStatus := w.config.EventIgnoreStatus
 	ignoreNewsletter := w.config.EventIgnoreNewsletter
+	sendPriorityMode := w.config.SendPriorityMode
 
-	if !ignoreGroups && !ignoreStatus && !ignoreNewsletter {
+	if !ignoreGroups && !ignoreStatus && !ignoreNewsletter && !sendPriorityMode {
 		return nil
 	}
 
@@ -146,6 +147,8 @@ func (w whatsmeowService) buildIncomingMessageFilter(instance *instance_model.In
 				return whatsmeow.IncomingMessageFilterDecision{Process: true}
 			}
 			switch {
+			case sendPriorityMode && (chat.Server == types.DefaultUserServer || chat.Server == types.LegacyUserServer):
+				return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "send_priority_private_raw"}
 			case ignoreGroups && chat.Server == types.GroupServer:
 				return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_group_raw"}
 			case ignoreStatus && chat == types.StatusBroadcastJID:
@@ -158,6 +161,8 @@ func (w whatsmeowService) buildIncomingMessageFilter(instance *instance_model.In
 		}
 
 		switch {
+		case sendPriorityMode && !info.IsFromMe && (info.Chat.Server == types.DefaultUserServer || info.Chat.Server == types.LegacyUserServer):
+			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "send_priority_private"}
 		case ignoreGroups && info.IsGroup && info.Chat.Server == types.GroupServer:
 			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_group"}
 		case ignoreStatus && info.Chat == types.StatusBroadcastJID:
@@ -451,9 +456,13 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 	clientLog := waLog.Stdout("Client", minLevel, true)
 	client := whatsmeow.NewClient(deviceStore, clientLog)
 	client.IncomingMessageFilter = w.buildIncomingMessageFilter(cd.Instance)
+	client.ManualHistorySyncDownload = w.config.SendPriorityMode
 	if client.IncomingMessageFilter != nil {
 		instanceIgnoreGroups := cd.Instance != nil && cd.Instance.IgnoreGroups
 		w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("[%s] Early incoming WhatsApp filter enabled: groups=%v status=%v newsletter=%v instanceIgnoreGroups=%v", cd.Instance.Id, w.config.EventIgnoreGroup, w.config.EventIgnoreStatus, w.config.EventIgnoreNewsletter, instanceIgnoreGroups)
+	}
+	if w.config.SendPriorityMode {
+		w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("[%s] Send priority mode enabled: incoming private messages and automatic history sync are suppressed", cd.Instance.Id)
 	}
 
 	w.clientPointer[cd.Instance.Id] = client
