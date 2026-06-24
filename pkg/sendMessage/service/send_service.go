@@ -561,10 +561,15 @@ func (s *sendService) checkSingleUserExists(client *whatsmeow.Client, phone stri
 	}
 
 	// Check if the number exists on WhatsApp
-	resp, err := client.IsOnWhatsApp(context.Background(), phoneNumbers)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	resp, err := client.IsOnWhatsApp(ctx, phoneNumbers)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to check if number %s exists on WhatsApp: %v", phoneNumbers[0], err)
 	}
+	s.loggerWrapper.GetLogger(instanceId).LogInfo("[%s] WhatsApp user existence check completed for %s in %s", instanceId, phoneNumbers[0], time.Since(start))
 
 	// Verify if the number was found
 	if len(resp) == 0 {
