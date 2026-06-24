@@ -139,13 +139,26 @@ func (w whatsmeowService) buildIncomingMessageFilter(instance *instance_model.In
 		return nil
 	}
 
-	return func(info *types.MessageInfo, _ *waBinary.Node) whatsmeow.IncomingMessageFilterDecision {
+	return func(info *types.MessageInfo, node *waBinary.Node) whatsmeow.IncomingMessageFilterDecision {
 		if info == nil {
-			return whatsmeow.IncomingMessageFilterDecision{Process: true}
+			chat, ok := jidFromNodeAttr(node, "from")
+			if !ok {
+				return whatsmeow.IncomingMessageFilterDecision{Process: true}
+			}
+			switch {
+			case ignoreGroups && chat.Server == types.GroupServer:
+				return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_group_raw"}
+			case ignoreStatus && chat == types.StatusBroadcastJID:
+				return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_status_raw"}
+			case ignoreNewsletter && chat.Server == types.NewsletterServer:
+				return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_newsletter_raw"}
+			default:
+				return whatsmeow.IncomingMessageFilterDecision{Process: true}
+			}
 		}
 
 		switch {
-		case ignoreGroups && info.Chat.Server == types.GroupServer:
+		case ignoreGroups && info.IsGroup && info.Chat.Server == types.GroupServer:
 			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_group"}
 		case ignoreStatus && info.Chat == types.StatusBroadcastJID:
 			return whatsmeow.IncomingMessageFilterDecision{Process: false, Reason: "ignored_status"}
@@ -154,6 +167,26 @@ func (w whatsmeowService) buildIncomingMessageFilter(instance *instance_model.In
 		default:
 			return whatsmeow.IncomingMessageFilterDecision{Process: true}
 		}
+	}
+}
+
+func jidFromNodeAttr(node *waBinary.Node, key string) (types.JID, bool) {
+	if node == nil {
+		return types.EmptyJID, false
+	}
+	value, ok := node.Attrs[key]
+	if !ok {
+		return types.EmptyJID, false
+	}
+	switch typed := value.(type) {
+	case types.JID:
+		return typed, !typed.IsEmpty()
+	case string:
+		jid, err := types.ParseJID(typed)
+		return jid, err == nil && !jid.IsEmpty()
+	default:
+		jid, err := types.ParseJID(fmt.Sprint(typed))
+		return jid, err == nil && !jid.IsEmpty()
 	}
 }
 
@@ -418,6 +451,10 @@ func (w whatsmeowService) StartClient(cd *ClientData) {
 	clientLog := waLog.Stdout("Client", minLevel, true)
 	client := whatsmeow.NewClient(deviceStore, clientLog)
 	client.IncomingMessageFilter = w.buildIncomingMessageFilter(cd.Instance)
+	if client.IncomingMessageFilter != nil {
+		instanceIgnoreGroups := cd.Instance != nil && cd.Instance.IgnoreGroups
+		w.loggerWrapper.GetLogger(cd.Instance.Id).LogInfo("[%s] Early incoming WhatsApp filter enabled: groups=%v status=%v newsletter=%v instanceIgnoreGroups=%v", cd.Instance.Id, w.config.EventIgnoreGroup, w.config.EventIgnoreStatus, w.config.EventIgnoreNewsletter, instanceIgnoreGroups)
+	}
 
 	w.clientPointer[cd.Instance.Id] = client
 
@@ -1606,17 +1643,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			buttonClickMap := map[string]interface{}{
 				"event": "ButtonClick",
 				"data": map[string]interface{}{
-					"buttonId":     buttonClickData["buttonId"],
-					"buttonText":   buttonClickData["buttonText"],
-					"type":         buttonClickData["type"],
-					"phone":        dataMap["Sender"],
-					"jid":          dataMap["Sender"],
-					"pushName":     dataMap["PushName"],
-					"messageId":    dataMap["ID"],
-					"chat":         dataMap["Chat"],
-					"fromMe":       dataMap["FromMe"],
-					"timestamp":    evt.Info.Timestamp.Unix(),
-					"extraData":    buttonClickData,
+					"buttonId":   buttonClickData["buttonId"],
+					"buttonText": buttonClickData["buttonText"],
+					"type":       buttonClickData["type"],
+					"phone":      dataMap["Sender"],
+					"jid":        dataMap["Sender"],
+					"pushName":   dataMap["PushName"],
+					"messageId":  dataMap["ID"],
+					"chat":       dataMap["Chat"],
+					"fromMe":     dataMap["FromMe"],
+					"timestamp":  evt.Info.Timestamp.Unix(),
+					"extraData":  buttonClickData,
 				},
 				"instanceToken": mycli.token,
 				"instanceId":    mycli.userID,
@@ -1805,6 +1842,9 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		// Agora mata o canal DEPOIS de enviar o evento
 		mycli.killChannel[mycli.userID] <- true
 	case *events.ChatPresence:
+		if (mycli.config.EventIgnoreGroup || mycli.Instance.IgnoreGroups) && evt.IsGroup && evt.Chat.Server == types.GroupServer {
+			return
+		}
 		doWebhook = true
 		postMap["event"] = "ChatPresence"
 		mycli.loggerWrapper.GetLogger(mycli.userID).LogInfo("[%s] Chat presence received %+v", mycli.userID, evt)
